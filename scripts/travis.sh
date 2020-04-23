@@ -13,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specifi
 
+set -euo pipefail
+
 main() {
   if [ $# -ne 2 ] ; then
     printf "Usage:\n\ttravis.sh <linux|osx> <initialize|build>\n"
@@ -287,33 +289,14 @@ common_build() {
   printf " > Building rellic...\n"
   if [ "${llvm_version:0:1}" == "3" ] ; then
     printf " i Clang static analyzer not supported on this LLVM release (${llvm_version})\n"
-    ( cd build && make -j `nproc` && make test) &
+    cd build
+    make -j `nproc`
+    make test
   else
     printf " i Clang static analyzer enabled\n"
-    ( cd build && scan-build --show-description make -j `GetProcessorCount` && make test) > "${log_file}" 2>&1 &
-  fi
-
-  local build_pid="$!"
-
-  printf "\nWaiting..."
-  while [ true ] ; do
-    kill -s 0 "${build_pid}" > /dev/null 2>&1
-    if [ $? -ne 0 ] ; then
-      break
-    fi
-
-    printf "."
-    sleep 5
-  done
-  printf "\n\n"
-
-  wait "${build_pid}"
-  if [ $? -ne 0 ] ; then
-    printf " x Failed to build the project. Error output follows:\n"
-    printf "===\n"
-    cat "${log_file}"
-    cat build/Testing/Temporary/LastTest.log
-    return 1
+    cd build
+    scan-build --show-description make -j `GetProcessorCount`
+    make test
   fi
 
   if [ "${llvm_version:0:1}" != "3" ] ; then
