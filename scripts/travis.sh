@@ -13,19 +13,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specifi
 
-set -euo pipefail
+set -uo pipefail
 
 main() {
-  if [ $# -ne 2 ] ; then
-    printf "Usage:\n\ttravis.sh <linux|osx> <initialize|build>\n"
+  if [ $# -ne 2 ] && [ $# -ne 3 ] ; then
+    printf "Usage:\n\ttravis.sh <linux|osx> <initialize|build> <optional llvm_version>\n"
+    printf "  llvm_version: <majorminor>, e.g. 70 for LLVM 7.0\n"
+    printf "    if not given, test all available versions\n"
     return 1
   fi
 
   local platform_name="$1"
   local operation_type="$2"
+  local llvm_version="${3-}"
 
   if [[ "${platform_name}" != "osx" && "${platform_name}" != "linux" ]] ; then
-    printf "Invalid platform: ${platform_name}\n"
+    printf "Invalid platform: %s\n" "${platform_name}"
     return 1
   fi
 
@@ -34,7 +37,21 @@ main() {
     return $?
 
   elif [[ "$operation_type" == "build" ]] ; then
-    "${platform_name}_build"
+    llvm_version_list=( "40" "50" "60" "70" "80" )
+    if [[ -z "$llvm_version" ]] ; then
+      echo "Building all LLVM versions: ${llvm_version_list[*]}"
+      for llvm_version in "${llvm_version_list[@]}" ; do
+        "${platform_name}_build" "$llvm_version"
+      done
+    else
+      # Check to make sure the choice is in our list of supported LLVM versions
+      if [[ " ${llvm_version_list[@]} " =~ " ${llvm_version} " ]] ; then
+        echo "Building LLVM version ${llvm_version}"
+        "${platform_name}_build" "$llvm_version"
+      else
+        echo "Choose LLVM version from: ${llvm_version_list[*]}"
+      fi
+    fi
     return $?
 
   else
@@ -47,15 +64,15 @@ linux_initialize() {
   printf "Initializing platform: linux\n"
 
   printf " > Updating the system...\n"
-  sudo apt-get -qq update
-  if [ $? -ne 0 ] ; then
+
+  if ! sudo apt-get -qq update ; then
     printf " x The package database could not be updated\n"
     return 1
   fi
 
   printf " > Installing the required packages...\n"
-  sudo apt-get install -qqy git python2.7 unzip curl realpath build-essential gcc-multilib g++-multilib libomp-dev libtinfo-dev lsb-release
-  if [ $? -ne 0 ] ; then
+
+  if ! sudo apt-get install -qqy git python2.7 unzip curl realpath build-essential gcc-multilib g++-multilib libomp-dev libtinfo-dev lsb-release ; then
     printf " x Could not install the required dependencies\n"
     return 1
   fi
@@ -70,20 +87,15 @@ osx_initialize() {
 }
 
 linux_build() {
+  llvm_version="$1"
+
   local os_version=`cat /etc/issue | awk '{ print $2 }' | cut -d '.' -f 1-2 | tr -d '.'`
 
   get_z3
 
-  llvm_version_list=( "40" "50" "60" "70" "80" )
+  common_build "ubuntu${os_version}" "${llvm_version}" 1 || return 1
 
-  for llvm_version in "${llvm_version_list[@]}" ; do
-    common_build "ubuntu${os_version}" "${llvm_version}" 1
-    if [ $? -ne 0 ] ; then
-      return 1
-    fi
-
-    printf "\n\n"
-  done
+  printf "\n\n"
 
   return 0
 }
@@ -91,22 +103,17 @@ linux_build() {
 osx_build() {
   get_z3
 
-  llvm_version_list=( "40" "50" "60" "70" "80" )
+  llvm_version="$1"
 
-  for llvm_version in "${llvm_version_list[@]}" ; do
-    common_build "osx" "${llvm_version}" 1
-    if [ $? -ne 0 ] ; then
-      return 1
-    fi
+  common_build "osx" "${llvm_version}" 1 || return 1
 
-    printf "\n\n"
-  done
+  printf "\n\n"
 
   return 0
 }
 
 get_z3() {
-  local log_file=`mktemp`
+  local log_file="$(mktemp)"
   local z3_version="4.7.1"
   local z3_release="z3-${z3_version}-x64-ubuntu-16.04"
 
@@ -217,7 +224,7 @@ common_build() {
   printf " > Acquiring the cxx-common package: LLVM${llvm_version} for ${os_version}\n"
 
   if [ ! -d "cxxcommon" ] ; then
-    mkdir "cxxcommon" > "${log_file}" 2>&1
+    mkdir -p "cxxcommon" > "${log_file}" 2>&1
     if [ $? -ne 0 ] ; then
       printf " x Failed to create the cxxcommon folder. Error output follows:\n"
       printf "===\n"
@@ -257,11 +264,11 @@ common_build() {
   export PATH="${TRAILOFBITS_LIBRARIES}/llvm/bin:${TRAILOFBITS_LIBRARIES}/cmake/bin:${TRAILOFBITS_LIBRARIES}/protobuf/bin:${PATH}"
 
   if [[ "${use_host_compiler}" = "1" ]] ; then
-    if [ -z "${CC}" ] ; then
+    if [[ -v CC ]]; then
       export CC="$(which cc)"
     fi
 
-    if [ -z "${CXX}" ] ; then
+    if [[ -v CXX ]]; then
       export CXX="$(which c++)"
     fi
   else
@@ -270,7 +277,7 @@ common_build() {
   fi
 
   printf " > Generating the project...\n"
-  if mkdir build ; then
+  if ! mkdir -p build ; then
     printf " x Failed to create the build folder. Error output follows:\n"
     printf "===\n"
     cat "${log_file}"
@@ -289,13 +296,13 @@ common_build() {
   if [ "${llvm_version:0:1}" == "3" ] ; then
     printf " i Clang static analyzer not supported on this LLVM release (${llvm_version})\n"
     cd build
-    make -j "$(nproc)"
-    make test
+    make -j "$(nproc)" || exit 1
+    make test ARGS="-V" || exit 1
   else
     printf " i Clang static analyzer enabled\n"
     cd build
-    scan-build --show-description make -j "$(GetProcessorCount)"
-    make test
+    scan-build --show-description make -j "$(GetProcessorCount)" || exit 1
+    make test ARGS="-V" || exit 1
   fi
 
   if [ "${llvm_version:0:1}" != "3" ] ; then
