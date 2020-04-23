@@ -6,6 +6,9 @@ dist:
 os:
   - linux
 
+python:
+  - "3.7"
+
 env:
   - LLVM_VERSION=40
   - LLVM_VERSION=50
@@ -18,7 +21,6 @@ before_install:
   - ./scripts/travis.sh "$TRAVIS_OS_NAME" initialize
 
 script:
-  - pyenv global 3.7.1
   - ./scripts/travis.sh "$TRAVIS_OS_NAME" build "$LLVM_VERSION"
 
 jobs:
