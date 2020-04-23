@@ -73,7 +73,7 @@ linux_build() {
   get_z3
 
   llvm_version_list=( "40" "50" "60" "70" "80" )
-  
+
   for llvm_version in "${llvm_version_list[@]}" ; do
     common_build "ubuntu${os_version}" "${llvm_version}" 1
     if [ $? -ne 0 ] ; then
@@ -88,9 +88,9 @@ linux_build() {
 
 osx_build() {
   get_z3
-  
+
   llvm_version_list=( "40" "50" "60" "70" "80" )
-  
+
   for llvm_version in "${llvm_version_list[@]}" ; do
     common_build "osx" "${llvm_version}" 1
     if [ $? -ne 0 ] ; then
@@ -103,12 +103,12 @@ osx_build() {
   return 0
 }
 
-get_z3() { 
+get_z3() {
   local log_file=`mktemp`
   local z3_version="4.7.1"
   local z3_release="z3-${z3_version}-x64-ubuntu-16.04"
-  
-  # clean up any existing Z3 stuff  
+
+  # clean up any existing Z3 stuff
   if [ -d "z3" ] ; then
     sudo rm -rf z3 > "${log_file}" 2>&1
     if [ $? -ne 0 ] ; then
@@ -118,7 +118,7 @@ get_z3() {
       return 1
     fi
   fi
-  
+
   if [ -f "${z3_release}.zip" ] ; then
     sudo rm "${z3_release}.zip" > "${log_file}" 2>&1
     if [ $? -ne 0 ] ; then
@@ -132,7 +132,7 @@ get_z3() {
   printf "#\n"
   printf "# Acquiring Z3 release: ${z3_release}\n"
   printf "#\n\n"
-   
+
   curl -C - "https://github.com/Z3Prover/z3/releases/download/z3-${z3_version}/${z3_release}.zip" -OL > "${log_file}" 2>&1
   if [ $? -ne 0 ] ; then
     printf " x Failed to download the z3 release archive. Error output follows:\n"
@@ -258,7 +258,7 @@ common_build() {
     if [[ "x${CC}x" = "xx" ]] ; then
       export CC=$(which cc)
     fi
-    
+
     if [[ "x${CXX}x" = "xx" ]] ; then
       export CXX=$(which c++)
     fi
