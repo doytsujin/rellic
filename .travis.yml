@@ -13,7 +13,6 @@ env:
   - LLVM_VERSION=80
 
 compiler: gcc
-name: 'Native builds'
 before_install:
   - ./scripts/travis.sh "$TRAVIS_OS_NAME" initialize
 
