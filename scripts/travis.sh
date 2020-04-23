@@ -252,17 +252,17 @@ common_build() {
     fi
   fi
 
-  export TRAILOFBITS_LIBRARIES=`GetRealPath libraries`
-  export Z3_LIBRARIES=`GetRealPath z3`
+  export TRAILOFBITS_LIBRARIES="$(GetRealPath libraries)"
+  export Z3_LIBRARIES="$(GetRealPath z3)"
   export PATH="${TRAILOFBITS_LIBRARIES}/llvm/bin:${TRAILOFBITS_LIBRARIES}/cmake/bin:${TRAILOFBITS_LIBRARIES}/protobuf/bin:${PATH}"
 
   if [[ "${use_host_compiler}" = "1" ]] ; then
-    if [[ "x${CC}x" = "xx" ]] ; then
-      export CC=$(which cc)
+    if [ -z "${CC}" ] ; then
+      export CC="$(which cc)"
     fi
 
-    if [[ "x${CXX}x" = "xx" ]] ; then
-      export CXX=$(which c++)
+    if [ -z "${CXX}" ] ; then
+      export CXX="$(which c++)"
     fi
   else
     export CC="${TRAILOFBITS_LIBRARIES}/llvm/bin/clang"
@@ -270,8 +270,7 @@ common_build() {
   fi
 
   printf " > Generating the project...\n"
-  mkdir build > "${log_file}" 2>&1
-  if [ $? -ne 0 ] ; then
+  if mkdir build ; then
     printf " x Failed to create the build folder. Error output follows:\n"
     printf "===\n"
     cat "${log_file}"
@@ -290,12 +289,12 @@ common_build() {
   if [ "${llvm_version:0:1}" == "3" ] ; then
     printf " i Clang static analyzer not supported on this LLVM release (${llvm_version})\n"
     cd build
-    make -j `nproc`
+    make -j "$(nproc)"
     make test
   else
     printf " i Clang static analyzer enabled\n"
     cd build
-    scan-build --show-description make -j `GetProcessorCount`
+    scan-build --show-description make -j "$(GetProcessorCount)"
     make test
   fi
 
