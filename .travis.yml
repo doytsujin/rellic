@@ -1,7 +1,5 @@
 language: generic
 
-sudo: required
-
 dist: xenial
 
 os:
@@ -14,20 +12,23 @@ env:
   - LLVM_VERSION=70
   - LLVM_VERSION=80
 
+compiler: gcc
+name: 'Native builds'
+before_install:
+  - ./scripts/travis.sh "$TRAVIS_OS_NAME" initialize
+
+script:
+  - pyenv global 3.7.1
+  - ./scripts/travis.sh "$TRAVIS_OS_NAME" build "$LLVM_VERSION"
+
 jobs:
   include:
-    - compiler: gcc
-      name: 'Native builds'
-      before_install:
-        - ./scripts/travis.sh "$TRAVIS_OS_NAME" initialize
-
-      script:
-        - pyenv global 3.7.1
-        - ./scripts/travis.sh "$TRAVIS_OS_NAME" build "$LLVM_VERSION"
     - services:
         - docker
       name: 'Docker build'
       env: LLVM_VERSION=80
+      before_install:
+        - true
       script:
         - docker build -t rellic-decomp --build-arg LLVM_VERSION=8.0 .
         - |
