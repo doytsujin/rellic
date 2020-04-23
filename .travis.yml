@@ -7,16 +7,17 @@ dist: xenial
 os:
   - linux
 
+env:
+  - LLVM_VERSION=40
+  - LLVM_VERSION=50
+  - LLVM_VERSION=60
+  - LLVM_VERSION=70
+  - LLVM_VERSION=80
+
 jobs:
   include:
     - compiler: gcc
       name: 'Native builds'
-      env:
-        - LLVM_VERSION=40
-        - LLVM_VERSION=50
-        - LLVM_VERSION=60
-        - LLVM_VERSION=70
-        - LLVM_VERSION=80
       before_install:
         - ./scripts/travis.sh "$TRAVIS_OS_NAME" initialize
 
@@ -26,6 +27,7 @@ jobs:
     - services:
         - docker
       name: 'Docker build'
+      env: LLVM_VERSION=80
       script:
         - docker build -t rellic-decomp --build-arg LLVM_VERSION=8.0 .
         - |
