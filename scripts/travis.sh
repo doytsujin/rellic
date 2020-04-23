@@ -72,7 +72,8 @@ linux_initialize() {
 
   printf " > Installing the required packages...\n"
 
-  if ! sudo apt-get install -qqy git python2.7 unzip curl realpath build-essential gcc-multilib g++-multilib libomp-dev libtinfo-dev lsb-release ; then
+  # 16.04: realpath python2.7
+  if ! sudo apt-get install -qqy git python unzip curl build-essential gcc-multilib g++-multilib libomp-dev libtinfo-dev lsb-release ; then
     printf " x Could not install the required dependencies\n"
     return 1
   fi

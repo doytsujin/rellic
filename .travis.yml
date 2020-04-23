@@ -1,6 +1,7 @@
 language: generic
 
-dist: xenial
+dist:
+  - bionic
 
 os:
   - linux
